@@ -499,7 +499,7 @@ end
 loadfile = function( _sFile, _tEnv )
     local file = fs.open( _sFile, "r" )
     if file then
-        local func, err = load( file.readAll(), fs.getName( _sFile ), "t", _tEnv )
+        local func, err = load( file.readAll(), "@" .. fs.getName( _sFile ), "t", _tEnv )
         file.close()
         return func, err
     end
