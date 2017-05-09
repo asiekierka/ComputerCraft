@@ -40,8 +40,8 @@ import java.util.*;
 public class TileCable extends TileModemBase
     implements INetwork
 {
-    private static final double MIN = 0.375;
-    private static final double MAX = 1 - MIN;
+    public static final double MIN = 0.375;
+    public static final double MAX = 1 - MIN;
 
     private static final AxisAlignedBB BOX_CENTRE = new AxisAlignedBB( MIN, MIN, MIN, MAX, MAX, MAX );
     private static final AxisAlignedBB[] BOXES = new AxisAlignedBB[]{

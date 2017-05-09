@@ -6,11 +6,18 @@
 
 package dan200.computercraft.shared.util;
 
+import net.minecraft.client.Minecraft;
 import net.minecraft.entity.Entity;
+import net.minecraft.entity.EntityLivingBase;
 import net.minecraft.entity.item.EntityItem;
+import net.minecraft.entity.player.EntityPlayer;
+import net.minecraft.entity.player.EntityPlayerMP;
 import net.minecraft.item.ItemStack;
-import net.minecraft.util.*;
-import net.minecraft.util.math.*;
+import net.minecraft.util.EnumFacing;
+import net.minecraft.util.math.AxisAlignedBB;
+import net.minecraft.util.math.BlockPos;
+import net.minecraft.util.math.RayTraceResult;
+import net.minecraft.util.math.Vec3d;
 import net.minecraft.world.World;
 import org.apache.commons.lang3.tuple.Pair;
 
@@ -46,9 +53,9 @@ public class WorldUtil
         }
 
         // Check for entities
-        float xStretch = (Math.abs(vecDir.xCoord) > 0.25f) ? 0.0f : 1.0f;
-        float yStretch = (Math.abs(vecDir.yCoord) > 0.25f) ? 0.0f : 1.0f;
-        float zStretch = (Math.abs(vecDir.zCoord) > 0.25f) ? 0.0f : 1.0f;
+        float xStretch = Math.abs(vecDir.xCoord) > 0.25f ? 0.0f : 1.0f;
+        float yStretch = Math.abs(vecDir.yCoord) > 0.25f ? 0.0f : 1.0f;
+        float zStretch = Math.abs(vecDir.zCoord) > 0.25f ? 0.0f : 1.0f;
         AxisAlignedBB bigBox = new AxisAlignedBB(
             Math.min(vecStart.xCoord, vecEnd.xCoord) - 0.375f * xStretch,
             Math.min(vecStart.yCoord, vecEnd.yCoord) - 0.375f * yStretch,
@@ -110,6 +117,35 @@ public class WorldUtil
             return Pair.of( closest, closestPos );
         }
         return null;
+    }
+
+    public static Vec3d getRayStart( EntityLivingBase entity )
+    {
+        return new Vec3d( entity.posX, entity.posY + entity.getEyeHeight(), entity.posZ );
+    }
+    
+    public static Vec3d getRayEnd( EntityPlayer player) {
+        double reach = 4.5;
+        if( player instanceof EntityPlayerMP )
+        {
+            reach = ((EntityPlayerMP) player).interactionManager.getBlockReachDistance();
+        }
+        else if( player.worldObj.isRemote )
+        {
+            reach = Minecraft.getMinecraft().playerController.getBlockReachDistance();
+        }
+        else if( player.capabilities.isCreativeMode )
+        {
+            reach = 5.0;
+        }
+        
+        Vec3d look = player.getLookVec();
+
+        return getRayStart( player ).addVector( look.xCoord * reach, look.yCoord * reach, look.zCoord * reach );
+    }
+    
+    public static boolean isVecInsideInclusive(AxisAlignedBB bb , Vec3d vec) {
+        return vec.xCoord >= bb.minX && vec.xCoord <= bb.maxX && vec.yCoord >= bb.minY && vec.yCoord <= bb.maxY && vec.zCoord >= bb.minZ && vec.zCoord <= bb.maxZ;
     }
 
     public static void dropItemStack( ItemStack stack, World world, BlockPos pos )
