@@ -16,6 +16,7 @@ import net.minecraft.block.properties.PropertyBool;
 import net.minecraft.block.properties.PropertyEnum;
 import net.minecraft.block.state.BlockStateContainer;
 import net.minecraft.block.state.IBlockState;
+import net.minecraft.entity.EntityLivingBase;
 import net.minecraft.entity.player.EntityPlayer;
 import net.minecraft.item.Item;
 import net.minecraft.item.ItemStack;
@@ -75,7 +76,7 @@ public class BlockCable extends BlockPeripheralBase
         setCreativeTab( ComputerCraft.mainCreativeTab );
         setDefaultState( this.blockState.getBaseState()
             .withProperty( Properties.MODEM, BlockCableModemVariant.None )
-            .withProperty( Properties.CABLE, BlockCableCableVariant.ANY )
+            .withProperty( Properties.CABLE, BlockCableCableVariant.NONE )
             .withProperty( Properties.NORTH, false )
             .withProperty( Properties.SOUTH, false )
             .withProperty( Properties.EAST, false )
@@ -161,7 +162,7 @@ public class BlockCable extends BlockPeripheralBase
             default:
             {
                 return getDefaultState()
-                    .withProperty( Properties.CABLE, BlockCableCableVariant.ANY )
+                    .withProperty( Properties.CABLE, BlockCableCableVariant.NONE )
                     .withProperty( Properties.MODEM, BlockCableModemVariant.fromFacing( placedSide.getOpposite() ) );
             }
             case WiredModemWithCable:
@@ -343,16 +344,16 @@ public class BlockCable extends BlockPeripheralBase
                     if( WorldUtil.isVecInsideInclusive( bb, hit.hitVec.subtract( pos.getX(), pos.getY(), pos.getZ() ) ) )
                     {
                         world.setBlockState( pos, state.withProperty( Properties.MODEM, BlockCableModemVariant.None ), 3 );
-                        cable.networkChanged();
+                        cable.modemChanged();
                         item = PeripheralItemFactory.create( PeripheralType.WiredModem, null, 1 );
                     }
                     else
                     {
                         world.setBlockState( pos, state.withProperty( Properties.CABLE, BlockCableCableVariant.NONE ), 3 );
-                        cable.networkChanged();
                         item = PeripheralItemFactory.create( PeripheralType.Cable, null, 1 );
                     }
 
+                    cable.networkChanged();
                     if( !world.isRemote && !player.capabilities.isCreativeMode ) dropItem( world, pos, item );
 
                     return false;
@@ -391,5 +392,21 @@ public class BlockCable extends BlockPeripheralBase
         }
 
         return PeripheralItemFactory.create( PeripheralType.Cable, null, 1 );
+    }
+
+    @Override
+    public void onBlockPlacedBy( World world, BlockPos pos, IBlockState state, EntityLivingBase placer, ItemStack stack )
+    {
+        TileEntity tile = world.getTileEntity( pos );
+        if( tile != null && tile instanceof TileCable )
+        {
+            TileCable cable = (TileCable) tile;
+            if( cable.getPeripheralType() != PeripheralType.WiredModem )
+            {
+                cable.networkChanged();
+            }
+        }
+
+        super.onBlockPlacedBy( world, pos, state, placer, stack );
     }
 }
