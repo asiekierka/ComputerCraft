@@ -90,7 +90,7 @@ public class ItemCable extends ItemPeripheralBase
             {
                 if( stack.stackSize > 0 )
                 {
-                    world.setBlockState( pos, existingState.withProperty( BlockCable.Properties.CABLE, true ), 3 );
+                    world.setBlockState( pos, existingState.withProperty( BlockCable.Properties.CABLE, BlockCableCableVariant.ANY ), 3 );
                     world.playSound( null, pos.getX() + 0.5, pos.getY() + 0.5, pos.getZ() + 0.5, ComputerCraft.Blocks.cable.getSoundType().getPlaceSound(), SoundCategory.BLOCKS, (ComputerCraft.Blocks.cable.getSoundType().getVolume() + 1.0F ) / 2.0F, ComputerCraft.Blocks.cable.getSoundType().getPitch() * 0.8F);
                     stack.stackSize--;
                     
@@ -140,7 +140,7 @@ public class ItemCable extends ItemPeripheralBase
                 {
                     if( stack.stackSize > 0 )
                     {
-                        world.setBlockState( offset, offsetExistingState.withProperty( BlockCable.Properties.CABLE, true ), 3 );
+                        world.setBlockState( offset, offsetExistingState.withProperty( BlockCable.Properties.CABLE, BlockCableCableVariant.ANY ), 3 );
                         world.playSound( null, offset.getX() + 0.5, offset.getY() + 0.5, offset.getZ() + 0.5, ComputerCraft.Blocks.cable.getSoundType().getPlaceSound(), SoundCategory.BLOCKS, (ComputerCraft.Blocks.cable.getSoundType().getVolume() + 1.0F ) / 2.0F, ComputerCraft.Blocks.cable.getSoundType().getPitch() * 0.8F);
                         stack.stackSize--;
 
