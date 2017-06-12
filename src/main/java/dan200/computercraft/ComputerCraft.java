@@ -394,14 +394,6 @@ public class ComputerCraft
         turtleProxy.init();
     }
 
-
-    @Mod.EventHandler
-    public void onMissingMappings( FMLMissingMappingsEvent event )
-    {
-        proxy.remap( event );
-        turtleProxy.remap( event );
-    }
-
     @Mod.EventHandler
     public void onServerStarting( FMLServerStartingEvent event )
     {
