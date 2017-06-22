@@ -367,7 +367,7 @@ public class FileSystem
         }
     }
         
-    public synchronized String combine( String path, String childPath )
+    public static String combine( String path, String childPath )
     {
         path = sanitizePath( path, true );
         childPath = sanitizePath( childPath, true );
@@ -735,12 +735,12 @@ public class FileSystem
         return match;
     }
 
-    private static String sanitizePath( String path )
+    public static String sanitizePath( String path )
     {
         return sanitizePath( path, false );
     }
 
-    private static String sanitizePath( String path, boolean allowWildcards )
+    public static String sanitizePath( String path, boolean allowWildcards )
     {
         // Allow windowsy slashes
         path = path.replace( '\\', '/' );

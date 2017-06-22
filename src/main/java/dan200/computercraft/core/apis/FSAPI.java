@@ -108,9 +108,21 @@ public class FSAPI implements ILuaAPI
             case 1:
             {
                 // combine
-                String pathA = getString( args, 0 );
-                String pathB = getString( args, 1 );
-                return new Object[] { m_fileSystem.combine( pathA, pathB ) };
+                String path = FileSystem.sanitizePath( getString( args, 0 ) );
+                for( int i = 1; i < args.length; i++ )
+                {
+                    String childPath = FileSystem.sanitizePath( getString( args, i ) );
+                    if( path.isEmpty() )
+                    {
+                        path = childPath;
+                    }
+                    else if( !childPath.isEmpty() )
+                    {
+                        path = FileSystem.sanitizePath( path + "/" + childPath );
+                    }
+                }
+
+                return new Object[] { path };
             }
             case 2:
             {

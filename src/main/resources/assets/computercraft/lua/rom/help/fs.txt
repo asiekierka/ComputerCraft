@@ -13,7 +13,7 @@ fs.makeDir( path )
 fs.move( path, path )
 fs.copy( path, path )
 fs.delete( path )
-fs.combine( path, localpath )
+fs.combine( path[, paths...] )
 fs.open( path, mode )
 fs.complete( path, location )
 Available fs.open() modes are "r", "w", "a", "rb", "wb" and "ab".
@@ -31,9 +31,10 @@ close()
 
 Functions on files opened with mode "rb":
 read()
+readAll()
 close()
 
 Functions on files opened with mode "wb" or "ab":
-write( byte )
+write( byte|string )
 flush()
 close()
