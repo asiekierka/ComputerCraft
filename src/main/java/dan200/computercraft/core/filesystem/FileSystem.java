@@ -9,7 +9,6 @@ package dan200.computercraft.core.filesystem;
 import dan200.computercraft.ComputerCraft;
 import dan200.computercraft.api.filesystem.IMount;
 import dan200.computercraft.api.filesystem.IWritableMount;
-import net.minecraftforge.fml.common.FMLLog;
 
 import java.io.*;
 import java.util.*;
@@ -443,19 +442,88 @@ public class FileSystem
         return array;
     }
 
-    private void findIn( String dir, List<String> matches, Pattern wildPattern ) throws FileSystemException
+    /**
+     * Represents one part of a glob pattern. It takes one of three forms:
+     * <ul>
+     *     <li>A constant string: In this case we can just assert the file exists and then match against that.</li>
+     *     <li>A pattern: We loop over each file in the directory and check against those which match the pattern.</li>
+     *     <li>The constant "**": In this case match recursively against all children.</li>
+     * </ul>
+     */
+    private static class GlobEntry
     {
-        String[] list = list( dir );
-        for( String entry : list )
+        final String name;
+        final Pattern pattern;
+
+        GlobEntry( String name )
         {
-            String entryPath = dir.isEmpty() ? entry : (dir + "/" + entry);
-            if( wildPattern.matcher( entryPath ).matches() )
+            this.name = name;
+            this.pattern = null;
+        }
+
+        GlobEntry( Pattern pattern )
+        {
+            this.name = null;
+            this.pattern = pattern;
+        }
+    }
+
+    private void findIn( String dir, Set<String> matches, List<GlobEntry> wildPatterns, int wildIndex ) throws FileSystemException
+    {
+        GlobEntry glob = wildPatterns.get( wildIndex );
+        if( glob.pattern != null )
+        {
+            // Scan this directory for files which match this pattern.
+            for( String entry : list( dir ) )
             {
-                matches.add( entryPath );
+                if( glob.pattern.matcher( entry ).matches() )
+                {
+                    String entryPath = dir.isEmpty() ? entry : (dir + "/" + entry);
+                    if( wildIndex == wildPatterns.size() - 1 )
+                    {
+                        matches.add( entryPath );
+                    }
+                    else if( isDir( entryPath ) )
+                    {
+                        findIn( entryPath, matches, wildPatterns, wildIndex + 1 );
+                    }
+                }
             }
-            if( isDir( entryPath ) )
+        }
+        else if( glob.name.equals( "**" ) )
+        {
+            // Match the next pattern in this directory
+            if( wildIndex < wildPatterns.size() - 1 ) findIn( dir, matches, wildPatterns, wildIndex + 1 );
+
+            // And continue searching in child directories.
+            String[] list = list( dir );
+            for( String entry : list )
             {
-                findIn( entryPath, matches, wildPattern );
+                String entryPath = dir.isEmpty() ? entry : (dir + "/" + entry);
+                if( wildIndex == wildPatterns.size() - 1 )
+                {
+                    matches.add( entryPath );
+                }
+                else if( isDir( entryPath ) )
+                {
+                    findIn( entryPath, matches, wildPatterns, wildIndex );
+                }
+            }
+        }
+        else
+        {
+            // We're a normal string, so we just do a direct lookup on the file/directory.
+            String entryPath = dir.isEmpty() ? glob.name : (dir + "/" + glob.name);
+            if( exists( entryPath ) )
+            {
+                if( wildIndex == wildPatterns.size() - 1 )
+                {
+                    matches.add( entryPath );
+                }
+                else if( isDir( entryPath ) )
+                {
+                    findIn( entryPath, matches, wildPatterns, wildIndex + 1 );
+                }
             }
         }
     }
@@ -466,27 +534,48 @@ public class FileSystem
         wildPath = sanitizePath( wildPath, true );
 
         // If we don't have a wildcard at all just check the file exists
-        int starIndex = wildPath.indexOf( '*' );
-        if( starIndex == -1 )
+        if( wildPath.indexOf( '*' ) < 0 && wildPath.indexOf( '*' ) < 0 )
         {
-            return exists( wildPath ) ? new String[]{wildPath} : new String[0];
+            return exists( wildPath ) ? new String[] { wildPath } : new String[ 0 ];
         }
 
-        // Find the all non-wildcarded directories. For instance foo/bar/baz* -> foo/bar
-        int prevDir = wildPath.substring( 0, starIndex ).lastIndexOf( '/' );
-        String startDir = prevDir == -1 ? "" : wildPath.substring( 0, prevDir );
+        // Build a list of "glob entries" from the path.
+        String[] parts = wildPath.split( "/" );
+        List<GlobEntry> globEntries = new ArrayList<GlobEntry>( parts.length );
+        for( String part : parts )
+        {
+            if( part.equals( "**" ) )
+            {
+                // If we're a globstar and the previous entry wasn't a globstar then add it, otherwise we're going
+                // to be duplicating work.
+                if( globEntries.size() == 0 || !"**".equals( globEntries.get( globEntries.size() - 1 ).name ) )
+                {
+                    globEntries.add( new GlobEntry( "**" ) );
+                }
+            }
+            else if( part.indexOf( '*' ) >= 0 || part.indexOf( '?' ) >= 0 )
+            {
+                // We're a wildcard so we'll compile a pattern.
+                part = part
+                    .replaceAll( "\\*", "\\\\E.*\\\\Q" )
+                    .replaceAll( "\\?", "\\\\E.\\\\Q" );
+                globEntries.add( new GlobEntry( Pattern.compile( "^\\Q" + part + "\\E$" ) ) );
+            }
+            else
+            {
+                // We're just a normal entry so let's use that.
+                globEntries.add( new GlobEntry( part ) );
+            }
+        }
 
-        // If this isn't a directory then just abort
-        if( !isDir( startDir ) ) return new String[0];
-
-        // Scan as normal, starting from this directory
-        Pattern wildPattern = Pattern.compile( "^\\Q" + wildPath.replaceAll( "\\*", "\\\\E[^\\\\/]*\\\\Q" ) + "\\E$" );
-        List<String> matches = new ArrayList<String>();
-        findIn( startDir, matches, wildPattern );
+        // Scan the file system with these entries.
+        Set<String> matches = new HashSet<String>();
+        findIn( "", matches, globEntries, 0 );
 
         // Return matches
         String[] array = new String[ matches.size() ];
-        matches.toArray(array);
+        matches.toArray( array );
+        Arrays.sort( array );
         return array;
     }
 
@@ -740,20 +829,34 @@ public class FileSystem
         return sanitizePath( path, false );
     }
 
+    /**
+     * Special characters that are not allowed in paths.
+     *
+     * These are sorted by ASCII value, so we can use {@link Arrays#binarySearch(char[], char)}
+     */
+    private static final char[] SPECIAL_CHARS = {
+        '"', ':', '<', '>', '|' // Sorted by ascii value (important)
+    };
+
+    /**
+     * Special characters that are only allowed in patterns.
+     *
+     * These are sorted by ASCII value, so we can use {@link Arrays#binarySearch(char[], char)}
+     */
+    private static final char[] PATTERN_CHARS = {
+        '*', '?' // Sorted by ascii value (important)
+    };
+
     public static String sanitizePath( String path, boolean allowWildcards )
     {
         // Allow windowsy slashes
         path = path.replace( '\\', '/' );
         
         // Clean the path or illegal characters.
-        final char[] specialChars = {
-            '"', ':', '<', '>', '?', '|' // Sorted by ascii value (important)
-        };
-
         StringBuilder cleanName = new StringBuilder();
         for( int i = 0; i < path.length(); i++ ) {
             char c = path.charAt(i);
-            if( c >= 32 && Arrays.binarySearch( specialChars, c ) < 0 && (allowWildcards || c != '*') )
+            if( c >= 32 && Arrays.binarySearch( SPECIAL_CHARS, c ) < 0 && (allowWildcards || Arrays.binarySearch( PATTERN_CHARS, c ) < 0) )
             {
                 cleanName.append( c );
             }
