@@ -14,6 +14,7 @@ import net.minecraft.nbt.NBTTagCompound;
 import net.minecraft.util.ResourceLocation;
 import net.minecraft.world.World;
 import net.minecraftforge.common.util.Constants;
+import org.apache.commons.lang3.ArrayUtils;
 
 import javax.annotation.Nonnull;
 import javax.annotation.Nullable;
@@ -125,6 +126,27 @@ public class PocketServerComputer extends ServerComputer implements IPocketAcces
     public IPocketUpgrade getUpgrade()
     {
         return m_upgrade;
+    }
+
+    /**
+     * Determine whether the item exists in the entity's inventory.
+     *
+     * Note this method is not thread safe - it must be called from the server thread.
+     *
+     * @return Whether this is in an entity.
+     */
+    public boolean inInventory()
+    {
+        if(m_stack == null) return false;
+        if( m_entity instanceof EntityPlayer )
+        {
+            InventoryPlayer inventory = ((EntityPlayer) m_entity).inventory;
+            return ArrayUtils.contains( inventory.mainInventory, m_stack ) || ArrayUtils.contains( inventory.offHandInventory, m_stack );
+        }
+        else
+        {
+            return false;
+        }
     }
 
     /**
